@@ -87,9 +87,9 @@ Library Initialization
 ======================
 Before any libi2c API is used, the library must be initialized. This
 is achieved with a call to function
-
+```c
     rtems_libi2c_initialize ().
-
+```
 It creates a global mutex to lock internal data structures and
 registers the OS adaption layer to the RTEMS I/O manager.
 
@@ -123,9 +123,9 @@ to initialize the i2c system if it is used by other drivers
 #Bus Registration
 ===================
 Each i2c and/or spi bus available must be registered with a call to
-
+```c
 int rtems_libi2c_register_bus (char *name, rtems_libi2c_bus_t * bus)
-
+```
 It registers the bus to the libi2c internal data structures and
 creates a device node in the RTEMS filesystem with the given name.
 If no name is given (name==NULL), then the default name "/dev/i2c" is used instead.
@@ -144,9 +144,9 @@ bus available on the board.
 #Device/Driver Registration
 ==========================
 Each device attached to an i2c or spi bus must be registered with a call to
-
+```c
 int rtems_libi2c_register_drv (char *name, rtems_libi2c_drv_t * drvtbl, unsigned bus, unsigned i2caddr);
-
+```
 With this call, libi2c is informed, that:
 
 - a device is attached to the given "bus" number (which in fact is the return value received
@@ -175,7 +175,7 @@ numbers, one for each bus and one for each device attached to one of
 the busses.
 
 Therefore the libi2c OS adaption layer provides the standard calls:
-
+```c
 static rtems_driver_address_table libi2c_io_ops = {
   initialization_entry:  i2c_init,
   open_entry:            i2c_open,
@@ -184,7 +184,7 @@ static rtems_driver_address_table libi2c_io_ops = {
   write_entry:           i2c_write,
   control_entry:         i2c_ioctl
 };
-
+```
 These calls perform some parameter checking and then call the
 appropriate high level i2c device driver function, if available,
 according to the entries in the "drvtbl" passed in the
@@ -216,7 +216,7 @@ high level i2c device driver and libi2c low level abstraction layer IF
 ======================================================================
 libi2c provides a set of functions for the high level drivers. These
 functions are:
-
+```c
 rtems_libi2c_send_start();
 rtems_libi2c_send_stop();
 rtems_libi2c_send_addr();
@@ -225,18 +225,18 @@ rtems_libi2c_write_bytes();
 rtems_libi2c_start_read_bytes();
 rtems_libi2c_start_write_bytes();
 rtems_libi2c_ioctl();
-
+```
 Please look into libi2c.h for the proper parameters and return codes.
 
 These functions perform the proper i2c operations when called.
 
 A typical access sequence for the I2C bus would be:
-
+```c
 rtems_libi2c_send_start();
 rtems_libi2c_send_addr();
 rtems_libi2c_write_bytes();
 rtems_libi2c_send_stop();
-
+```
 Alternatively, the rtems_libi2c_write_bytes() call could be relpaced
 with a
           rtems_libi2c_read_bytes()
@@ -267,13 +267,13 @@ rtems_libi2c_send_stop(); will deactivate the address line and unlock
 the bus.
 
 A typical access sequence for the SPI bus would be:
-
+```c
 rtems_libi2c_send_start();
 rtems_libi2c_ioctl(...,RTEMS_LIBI2C_IOCTL_SET_TFRMODE,...);
 rtems_libi2c_send_addr();
 rtems_libi2c_write_bytes();
 rtems_libi2c_send_stop();
-
+```
 Alternatively, the rtems_libi2c_write_bytes() call could be relpaced
 with a
          rtems_libi2c_read_bytes()

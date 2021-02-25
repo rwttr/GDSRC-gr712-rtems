@@ -1,46 +1,35 @@
 # Copyright and License
 
-For Copyright and License of the source code, see the header in
-libi2c.c.
+For Copyright and License of the source code, see the header in libi2c.c
 
 # Overview
 
-This directory contains a general I2C/SPI API library. It offers a
+This directory contains a general **I2C/SPI** API library. It offers a
 standard API to I2C or SPI based device drivers, abstracting the low
 level driver (dealing with the I2C/SPI controller hardware of the
 board) from the high-level drivers (dealing with devices connected to
 the I2C or SPI bus).
 
-In most cases throughout this document, i2c and spi devices are
-handled in a similar way. Therefore spi will not be explicitly named
-in every location.
+In most cases throughout this document, I2C and SPI devices are handled in a similar way.
+Therefore SPI will not be explicitly named in every location.
 
 # Features
 
-* supports multiple i2c and/or spi busses
-* supports multiple devices connected to each i2c/spi bus
+* supports multiple **I2C** and/or **SPI** busses
+* supports multiple devices connected to each **I2C/SPI** bus
 * handles bus and device registration to the I/O manager
 
 # Structure
 
-This library defines a layered API to i2c and spi devices. The layering is:
+This library defines a layered API to **I2C** and **SPI** devices. The layering is:
 
-  +----------------------------------------+
- 6|            Application                 |
-  +----------------------------------------+
+ 6|            Application                 |  
  5|         RTEMS I/O Manager              |
-  +----------------------------------------+
  4|**      libi2c OS adaption layer      **|
-  +----------------------------------------+
- 3|     high level i2c device driver       |
-  |          (EEPROM, RTC, ...)            |
-  |     (e.g. in c/src/libchip/i2c)        |
-  +----------------------------------------+
+ 3|     high level i2c device driver (EEPROM, RTC, ...) (e.g. in c/src/libchip/i2c) |
  2|** libi2c low level abstraction layer **|
-  +----------------------------------------+
- 1|      i2c controller driver             |
-  |              (in BSP)                  |
-  +----------------------------------------+
+ 1|      i2c controller driver (in BSP)    |
+
 
 This document will describe the following interfaces in separate sections:
 
@@ -64,9 +53,8 @@ either sends or receives data from a slave device
   * polarity and phase of clock wrt data
   * clock frequency
 
-The libi2c API defines a superset of functions to handle both flavors
-of serial data transmission, but care should be taken not to use
-features dedicated to the wrong type of serial bus.
+The libi2c API defines a superset of functions to handle both flavors of serial data transmission,
+but care should be taken not to use features dedicated to the wrong type of serial bus.
 
 # Library Initialization
 

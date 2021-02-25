@@ -23,12 +23,14 @@ Therefore SPI will not be explicitly named in every location.
 
 This library defines a layered API to **I2C** and **SPI** devices. The layering is:
 
- 6|            Application                 |  
- 5|         RTEMS I/O Manager              |
- 4|**      libi2c OS adaption layer      **|
- 3|     high level i2c device driver (EEPROM, RTC, ...) (e.g. in c/src/libchip/i2c) |
- 2|** libi2c low level abstraction layer **|
- 1|      i2c controller driver (in BSP)    |
+Layer no. | Description
+------------ | -------------
+ 6|            Application                 
+ 5|         RTEMS I/O Manager              
+ 4|**      libi2c OS adaption layer      **
+ 3|     high level i2c device driver (EEPROM, RTC, ...) (e.g. in c/src/libchip/i2c)
+ 2|** libi2c low level abstraction layer **
+ 1|      i2c controller driver (in BSP)    
 
 
 This document will describe the following interfaces in separate sections:
@@ -126,21 +128,18 @@ With this call, libi2c is informed, that:
 
 - the device should be registered with the given "name" in the device tree of the filesystem.
 
-The call will create a proper minor device number, which has the bus
-number and i2c_address encoded. This minor number is the return value
-of the call and is also associated with the filesystem node created
-for this device.
+The call will create a proper minor device number, which has the bus number and i2c_address encoded.
+This minor number is the return value of the call,
+and is also associated with the filesystem node created for this device.
 
-Note: If you have multiple devices of the same type, you must register
-each of them through a separate call (with the same "drvtbl", but
-different name/bus/i2caddr).
+Note: If you have multiple devices of the same type, you must register each of them through a separate call
+(with the same "drvtbl", but different name/bus/i2caddr).
 
 # (5<->4) RTEMS I/O Manager and the libi2c OS adaption layer IF
 
 The RTEMS I/O Manager regards the libi2c OS adaption layer as a normal
 RTEMS Device Driver with one unique major number and a set of minor
-numbers, one for each bus and one for each device attached to one of
-the busses.
+numbers, one for each bus and one for each device attached to one of the busses.
 
 Therefore the libi2c OS adaption layer provides the standard calls:
 ```c
@@ -155,17 +154,14 @@ static rtems_driver_address_table libi2c_io_ops = {
 ```
 These calls perform some parameter checking and then call the
 appropriate high level i2c device driver function, if available,
-according to the entries in the "drvtbl" passed in the
-rtems_libi2c_register_drv() call.
+according to the entries in the "drvtbl" passed in the rtems_libi2c_register_drv() call.
 
 There are two exceptions: when i2c_read or i2c_write is called with a
 minor number specifying a bus (and not a device attached to the bus),
-then the respective transfer is performed as a raw byte stream
-transfer to the bus.
+then the respective transfer is performed as a raw byte stream transfer to the bus.
 
 The main reason for the libi2c OS adaption layer is, that it
-dispatches the RTEMS I/O Manager calls to the proper device driver
-according to the minor number used.
+dispatches the RTEMS I/O Manager calls to the proper device driver according to the minor number used.
 
 # libi2c OS adaption layer and the high level i2c device driver IF
 
@@ -208,9 +204,8 @@ with a
 ```
 call or a sequence of multiple calls.
 
-Note: rtems_libi2c_send_start() locks the i2c/spi bus used, so no other
-device can use this i2c/spi bus, until rtems_libi2c_send_stop() function
-is called for the same device.
+Note: rtems_libi2c_send_start() locks the i2c/spi bus used, so no other device can use this **I2C/SPI** bus,
+until rtems_libi2c_send_stop() function is called for the same device.
 
 # Special provisions for SPI devices:
 
@@ -227,8 +222,7 @@ rtems_libi2c_send_addr() will activate the proper select line to
 address a certain SPI device. The correspondance between an address
 and the select line pulled is BSP specific.
 
-rtems_libi2c_send_stop(); will deactivate the address line and unlock
-the bus.
+rtems_libi2c_send_stop(); will deactivate the address line and unlock the bus.
 
 A typical access sequence for the SPI bus would be:
 ```c

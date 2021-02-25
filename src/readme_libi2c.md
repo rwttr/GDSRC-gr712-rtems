@@ -1,6 +1,6 @@
 # Copyright and License
 
-For Copyright and License of the source code, see the header in libi2c.c
+For Copyright and License of the source code, see the header in `libi2c.c`
 
 # Overview
 
@@ -28,7 +28,7 @@ Layer no. | Description
  6|            Application                 
  5|         RTEMS I/O Manager              
  4|**      libi2c OS adaption layer      **
- 3|     high level i2c device driver (EEPROM, RTC, ...) (e.g. in c/src/libchip/i2c)
+ 3|     high level i2c device driver (EEPROM, RTC, ...) (e.g. in `c/src/libchip/i2c`)
  2|** libi2c low level abstraction layer **
  1|      i2c controller driver (in BSP)    
 
@@ -73,7 +73,7 @@ Typically the BSP startup code will perform this initialization.
 A proper place for initializing the i2c layer and populating it
 with busses and device drivers (see 'Bus Registration' and
 'Device/Driver Registration' below) is the 'predriver_hook'
-where most facilities (such as malloc, libio) are already
+where most facilities (such as `malloc, libio`) are already
 available. Note, however, that 'stdio' is not yet functional
 at this point and all i2c bus and device drivers should carefully
 avoid using stdio so that other drivers which may build on top
@@ -102,7 +102,7 @@ It registers the bus to the libi2c internal data structures and
 creates a device node in the RTEMS filesystem with the given name.
 If no name is given (name==NULL), then the default name "/dev/i2c" is used instead.
 
-With the second calling parameter "rtems_libi2c_bus_t * bus" the
+With the second calling parameter `rtems_libi2c_bus_t *bus` the
 caller passes in a set of function pointers, which define the entries
 into the i2c controller driver (defined in the BSP).
 
@@ -122,9 +122,9 @@ int rtems_libi2c_register_drv (char *name, rtems_libi2c_drv_t * drvtbl, unsigned
 With this call, libi2c is informed, that:
 
 - a device is attached to the given "bus" number (which in fact is the return value received
-   from a previous rtems_libi2c_register_bus() call) with the address "i2caddr"
+   from a previous `rtems_libi2c_register_bus()` call) with the address `i2caddr`
 
-- the device is managed by a driver, who's entry functions are listed in "drvtbl"
+- the device is managed by a driver, who's entry functions are listed in `drvtbl`
 
 - the device should be registered with the given "name" in the device tree of the filesystem.
 
@@ -133,7 +133,7 @@ This minor number is the return value of the call,
 and is also associated with the filesystem node created for this device.
 
 Note: If you have multiple devices of the same type, you must register each of them through a separate call
-(with the same "drvtbl", but different name/bus/i2caddr).
+(with the same `drvtbl`, but different name/bus/i2caddr).
 
 # (5<->4) RTEMS I/O Manager and the libi2c OS adaption layer IF
 
@@ -141,7 +141,7 @@ The RTEMS I/O Manager regards the libi2c OS adaption layer as a normal
 RTEMS Device Driver with one unique major number and a set of minor
 numbers, one for each bus and one for each device attached to one of the busses.
 
-Therefore the libi2c OS adaption layer provides the standard calls:
+Therefore the `libi2c` OS adaption layer provides the standard calls:
 ```c
 static rtems_driver_address_table libi2c_io_ops = {
   initialization_entry:  i2c_init,
@@ -154,9 +154,9 @@ static rtems_driver_address_table libi2c_io_ops = {
 ```
 These calls perform some parameter checking and then call the
 appropriate high level i2c device driver function, if available,
-according to the entries in the "drvtbl" passed in the rtems_libi2c_register_drv() call.
+according to the entries in the `drvtbl` passed in the `rtems_libi2c_register_drv()` call.
 
-There are two exceptions: when i2c_read or i2c_write is called with a
+There are two exceptions: when `i2c_read` or `i2c_write` is called with a
 minor number specifying a bus (and not a device attached to the bus),
 then the respective transfer is performed as a raw byte stream transfer to the bus.
 
@@ -166,12 +166,11 @@ dispatches the RTEMS I/O Manager calls to the proper device driver according to 
 # libi2c OS adaption layer and the high level i2c device driver IF
 
 Each high level i2c device driver provides a set of functions in the
-rtems_libi2c_drv_t data structure passed the libi2c when the device is
+`rtems_libi2c_drv_t` data structure passed the `libi2c` when the device is
 registered (see "Device registration" above). These function directly match
-the RTEMS I/O Mangers calls "open", "close", "read", "write",
-"control", and they are passed the same arguments. Functions not
-needed may be omited (and replaced by a NULL pointer in
-rtems_libi2c_drv_t).
+the RTEMS I/O Mangers calls `"open", "close", "read", "write",
+"control"`, and they are passed the same arguments. Functions not
+needed may be omitted (and replaced by a NULL pointer in `rtems_libi2c_drv_t`).
 
 # High level i2c device driver and libi2c low level abstraction layer IF
 
@@ -186,7 +185,7 @@ rtems_libi2c_start_read_bytes();
 rtems_libi2c_start_write_bytes();
 rtems_libi2c_ioctl();
 ```
-Please look into libi2c.h for the proper parameters and return codes.
+Please look into `libi2c.h` for the proper parameters and return codes.
 
 These functions perform the proper i2c operations when called.
 
@@ -197,32 +196,31 @@ rtems_libi2c_send_addr();
 rtems_libi2c_write_bytes();
 rtems_libi2c_send_stop();
 ```
-Alternatively, the rtems_libi2c_write_bytes() call could be relpaced
-with a
+Alternatively, the rtems_libi2c_write_bytes() call could be replaced with a
 ```c
           rtems_libi2c_read_bytes()
 ```
 call or a sequence of multiple calls.
 
-Note: rtems_libi2c_send_start() locks the i2c/spi bus used, so no other device can use this **I2C/SPI** bus,
-until rtems_libi2c_send_stop() function is called for the same device.
+Note: `rtems_libi2c_send_start()` locks the i2c/spi bus used, so no other device can use this **I2C/SPI** bus,
+until `rtems_libi2c_send_stop()` function is called for the same device.
 
 # Special provisions for SPI devices:
 
 For SPI devices and their drivers, the libi2c interface is used slightly differently:
 
-rtems_libi2c_send_start() will lock access to the SPI bus, but has no
+`rtems_libi2c_send_start()` will lock access to the SPI bus, but has no
 effect on the hardware bus interface.
 
-rtems_libi2c_ioctl(...,RTEMS_LIBI2C_IOCTL_SET_TFRMODE,...) will set
-the transfer mode (bit rate, clock phase and polaritiy, bits per
+`rtems_libi2c_ioctl( ..., RTEMS_LIBI2C_IOCTL_SET_TFRMODE,... )` will set
+the transfer mode (bit rate, clock phase and polarity, bits per
 char...) according to the rtems_libi2c_tfr_mode_t structure passed in.
 
 rtems_libi2c_send_addr() will activate the proper select line to
-address a certain SPI device. The correspondance between an address
+address a certain SPI device. The correspondence between an address
 and the select line pulled is BSP specific.
 
-rtems_libi2c_send_stop(); will deactivate the address line and unlock the bus.
+`rtems_libi2c_send_stop();` will deactivate the address line and unlock the bus.
 
 A typical access sequence for the SPI bus would be:
 ```c
@@ -232,7 +230,7 @@ rtems_libi2c_send_addr();
 rtems_libi2c_write_bytes();
 rtems_libi2c_send_stop();
 ```
-Alternatively, the rtems_libi2c_write_bytes() call could be replaced with a
+Alternatively, the `rtems_libi2c_write_bytes()` call could be replaced with a
 ```c
          rtems_libi2c_read_bytes()
 ```
@@ -245,7 +243,7 @@ call or a sequence of multiple calls.
 # libi2c low level abstraction layer and i2c controller driver IF
 
 Each low level i2c/spi driver must provide a set of bus_ops functions
-as defined in the rtems_libi2c_bus_ops_t structure.
+as defined in the `rtems_libi2c_bus_ops_t` structure.
 ```c
 typedef struct rtems_libi2c_bus_ops_
 {
@@ -298,9 +296,9 @@ Note:
 
 - low-level I2C drivers normally are specific to the master
 device, but independent from the board hardware. So in many cases they
-can totally reside in libcpu or libchip.
+can totally reside in `libcpu` or `libchip`.
 
 - low-level SPI drivers are mostly board independent, but the
-  addressing is board/BSP dependent. Therefore the (*send_start),
-  (*send_addr) and (*send_stop) functions are typically defined in the
-  BSP. The rest of the functions can reside in libcpu or libchip.
+  addressing is board/BSP dependent. Therefore the `(*send_start)`,
+  `(*send_addr)` and `(*send_stop)` functions are typically defined in the
+  BSP. The rest of the functions can reside in `libcpu` or `libchip`.

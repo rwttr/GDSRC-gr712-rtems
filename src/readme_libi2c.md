@@ -1,9 +1,9 @@
-#Copyright and License
+# Copyright and License
 
 For Copyright and License of the source code, see the header in
 libi2c.c.
 
-#Overview
+# Overview
 
 This directory contains a general I2C/SPI API library. It offers a
 standard API to I2C or SPI based device drivers, abstracting the low
@@ -15,13 +15,13 @@ In most cases throughout this document, i2c and spi devices are
 handled in a similar way. Therefore spi will not be explicitly named
 in every location.
 
-#Features
+# Features
 
 * supports multiple i2c and/or spi busses
 * supports multiple devices connected to each i2c/spi bus
 * handles bus and device registration to the I/O manager
 
-#Structure
+# Structure
 
 This library defines a layered API to i2c and spi devices. The layering is:
 
@@ -49,7 +49,7 @@ This document will describe the following interfaces in separate sections:
 * the interface between the high level i2c device driver and the libi2c low level abstraction layer (3<->2)
 * the interface between the libi2c low level abstraction layer and the i2c controller driver (2<->1)
 
-#Differences between i2c and spi bus
+# Differences between i2c and spi bus
 
 SPI and I2C has many similarities, but also some differences:
 
@@ -68,7 +68,7 @@ The libi2c API defines a superset of functions to handle both flavors
 of serial data transmission, but care should be taken not to use
 features dedicated to the wrong type of serial bus.
 
-#Library Initialization
+# Library Initialization
 
 Before any libi2c API is used, the library must be initialized. This is achieved with a call to function
 ```c
@@ -102,7 +102,7 @@ For the time being, we must rely on the BSP (predriver_hook)
 to initialize the i2c system if it is used by other drivers
 (e.g., the RTC driver may have to use a i2c device).
 
-#Bus Registration
+# Bus Registration
 
 Each i2c and/or spi bus available must be registered with a call to
 ```c
@@ -123,7 +123,7 @@ Typically the BSP startup code will perform this registration for each
 bus available on the board.
 
 
-#Device/Driver Registration
+# Device/Driver Registration
 
 Each device attached to an i2c or spi bus must be registered with a call to
 ```c
@@ -147,7 +147,7 @@ Note: If you have multiple devices of the same type, you must register
 each of them through a separate call (with the same "drvtbl", but
 different name/bus/i2caddr).
 
-#(5<->4) RTEMS I/O Manager and the libi2c OS adaption layer IF
+# (5<->4) RTEMS I/O Manager and the libi2c OS adaption layer IF
 
 The RTEMS I/O Manager regards the libi2c OS adaption layer as a normal
 RTEMS Device Driver with one unique major number and a set of minor
@@ -179,7 +179,7 @@ The main reason for the libi2c OS adaption layer is, that it
 dispatches the RTEMS I/O Manager calls to the proper device driver
 according to the minor number used.
 
-#libi2c OS adaption layer and the high level i2c device driver IF
+# libi2c OS adaption layer and the high level i2c device driver IF
 
 Each high level i2c device driver provides a set of functions in the
 rtems_libi2c_drv_t data structure passed the libi2c when the device is
@@ -189,7 +189,7 @@ the RTEMS I/O Mangers calls "open", "close", "read", "write",
 needed may be omited (and replaced by a NULL pointer in
 rtems_libi2c_drv_t).
 
-#High level i2c device driver and libi2c low level abstraction layer IF
+# High level i2c device driver and libi2c low level abstraction layer IF
 
 libi2c provides a set of functions for the high level drivers. These functions are:
 ```c
@@ -224,7 +224,7 @@ Note: rtems_libi2c_send_start() locks the i2c/spi bus used, so no other
 device can use this i2c/spi bus, until rtems_libi2c_send_stop() function
 is called for the same device.
 
-#Special provisions for SPI devices:
+# Special provisions for SPI devices:
 
 For SPI devices and their drivers, the libi2c interface is used slightly differently:
 
@@ -256,16 +256,15 @@ Alternatively, the rtems_libi2c_write_bytes() call could be replaced with a
 ```
 or a
 ```c
-         rtems_libi2c_ioctl(...,RTEMS_LIBI2C_IOCTL_READ_WRITE,...)
+         rtems_libi2c_ioctl(..., RTEMS_LIBI2C_IOCTL_READ_WRITE,...)
 ```
 call or a sequence of multiple calls.
 
-====================================================================
-libi2c low level abstraction layer and i2c controller driver IF
-====================================================================
+# libi2c low level abstraction layer and i2c controller driver IF
+
 Each low level i2c/spi driver must provide a set of bus_ops functions
 as defined in the rtems_libi2c_bus_ops_t structure.
-
+```c
 typedef struct rtems_libi2c_bus_ops_
 {
   /* Initialize the bus; might be called again to reset the bus driver */
@@ -289,14 +288,13 @@ typedef struct rtems_libi2c_bus_ops_
 		void *buffer;
 		);
 } rtems_libi2c_bus_ops_t;
+```
+Each of these functions performs the corresponding function to the i2c bus.
 
-Each of these functions performs the corresponding function to the i2c
-bus.
+# Special provisions for SPI devices:
 
-Special provisions for SPI devices:
-===================================
 For SPI busses, special behaviour is required:
-
+```c
 (*send_start) (rtems_libi2c_bus_t * bushdl)
 	      normally is an empty function.
 
@@ -313,7 +311,7 @@ For SPI busses, special behaviour is required:
 
 (*ioctl(...,RTEMS_LIBI2C_IOCTL_READ_WRITE,...)
              will send and receive data at the same time.
-
+```
 Note:
 
 - low-level I2C drivers normally are specific to the master

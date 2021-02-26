@@ -132,7 +132,8 @@ void printbuf(unsigned char *buf, int len, int saddr)
 rtems_task Init( rtems_task_argument ignored )
 {
   int fd;
-	unsigned char rxbuf[50], txbuf[50];
+  unsigned char rxbuf[50], txbuf[50];
+  char data_to_send[] = "Hello World RAW SPI\n";
 
 	printf("******** Initializing SPICTRL test ********\n");
 
@@ -149,7 +150,6 @@ rtems_task Init( rtems_task_argument ignored )
 
   /* Raw Driver Alternative */
   mknod("/dev/SPIbasicRAW", S_IFIFO | S_IWUSR | S_IRUSR , MKDEV(rtems_libi2c_major, RTEMS_LIBI2C_MAKE_MINOR(0,0x54)));
-  char data_to_send[] = "Hello World RAW SPI\n";
 
   fd = open("/dev/SPIbasicRAW",O_RDWR);
 

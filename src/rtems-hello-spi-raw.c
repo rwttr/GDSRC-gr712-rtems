@@ -1,4 +1,8 @@
 /* SPICTRL interface example */
+/* Raw Driver Version
+  1. Write "Hello World RAW SPI" to slave device;
+  2. Read back from slave device and print on console
+*/
 
 /* Define this to use GPIO for chip select */
 /*#define USE_GPIO_SLVSEL*/
@@ -76,21 +80,7 @@ extern int spi_gpio_slvsel_setup(int port);
 #include <sys/stat.h>
 #include <fcntl.h>
 
-/* Raw driver register */
-
-
-/*------------------------------------------------------------------------*/
-/* basic spi driver setup */
-rtems_libi2c_drv_t_ my_driver = {
-  {
-    ops: &rtems_libi2c_io_ops,
- 	  size: sizeof(my_driver)
-	}
-};
-
-rtems_libi2c_drv_t_ *my_driver_desc = &my_driver;
-/* ========================================================= */
-/* Standard Open, Read, Write function for SPI with Verbose on console*/
+/* Standard Read, Write function for SPI with Verbose on console*/
 
 /* ver_read: Verbose read, checks return value of read() call */
 void ver_read(int fd, void *buf, size_t count)
@@ -124,19 +114,6 @@ void ver_write(int fd, const void *buf, size_t count)
   }
 }
 
-/* ver_open: Checks return value of open and exits on failure */
-int ver_open(const char *pathname, int flags)
-{
-  int fd;
-
-  fd = open(pathname, O_RDWR);
-  if (fd < 0) {
-    printf("Could not open %s: %s\n", pathname, strerror(errno));
-    exit(0);
-  }
-  return fd;
-}
-
 /* printbuf: Produces formatted printout of 'len' bytes from buffer 'buf' */
 void printbuf(unsigned char *buf, int len, int saddr)
 {
@@ -154,11 +131,8 @@ void printbuf(unsigned char *buf, int len, int saddr)
 */
 rtems_task Init( rtems_task_argument ignored )
 {
-	rtems_status_code status;
-  char *spi_basic_dev = "/dev/spi1.basic";
-	int fd;
-	unsigned char rxbuf[256], txbuf[256];
-	off_t ofs;
+  int fd;
+	unsigned char rxbuf[50], txbuf[50];
 
 	printf("******** Initializing SPICTRL test ********\n");
 
@@ -174,106 +148,28 @@ rtems_task Init( rtems_task_argument ignored )
 */
 
   /* Raw Driver Alternative */
-  /* mknod("/dev/SPIbasicRAW", S_IFIFO | S_IWUSR | S_IRUSR ,
-    MKDEV(rtems_libi2c_major, RTEMS_LIBI2C_MAKE_MINOR(0,0x54)));
+  mknod("/dev/SPIbasicRAW", S_IFIFO | S_IWUSR | S_IRUSR , MKDEV(rtems_libi2c_major, RTEMS_LIBI2C_MAKE_MINOR(0,0x54)));
+  char data_to_send[] = "Hello World RAW SPI\n";
 
- *   int fd;
- *   char data_to_send[] = "hello World SPI Raw\n";
- *   fd = open("/dev/SPIbasicRAW",O_RDWR);
- *   write(fd,data_to_send,sizeof());
- *   read(fd,&rxbuf,100);
- *   close(fd);
- *
+  fd = open("/dev/SPIbasicRAW",O_RDWR);
 
-    */
-
-	/* The driver has initialized the i2c library for us */
-
-  /* prototypes for register high level spi driver:
-  int rtems_libi2c_register_drv (char *name, rtems_libi2c_drv_t * drvtbl,
-                           unsigned bus_number, unsigned i2c_address); */
-  printf("Registering basic spi driver: ");
-  status = rtems_libi2c_register_drv("basic", my_driver_desc, 0, 1);
-
-  if (status < 0) {
-    printf("ERROR: Could not register SPI FLASH driver\n");
+  if ( fd < 0 ) {
+    printf("Failed to open RAW SPI\n");
     exit(0);
   }
-  printf("driver registered successfully\n");
 
-	fd = open(spi_basic_dev, O_RDWR);
-	if ( fd < 0 ) {
-		printf("Failed to open basic SPI\n");
-		exit(0);
-	}
+  ver_write(fd, data_to_send, sizeof(data_to_send));
 
-	/*** Read from current posistion (address 0x0) ***/
-	printf("\n\nREAD 0x0\n");
-	memset(rxbuf, 0, sizeof(rxbuf));
-	ver_read(fd, &rxbuf[0], 15);
-	printf("Read, bytes: %d [0x%x, 0x%x, 0x%x, 0x%x]\n", 15, rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
-	printbuf(rxbuf, 15, 0);
+  rtems_task_wake_after(1000);
 
-	/*** Read from current posistion (address 0xf due to previous read length) ***/
-	printf("\n\nREAD 0xf\n");
-	memset(rxbuf, 0, sizeof(rxbuf));
-	ver_read(fd, &rxbuf[0], 7);
-	printf("Read, bytes: %d [0x%x, 0x%x]\n", 7, rxbuf[0], rxbuf[1]);
-	printbuf(rxbuf, 7, 0xf);
+  // Read sizeof(data_to_send) bytes
+  printf("\n\nREAD address start at 0x0\n");
+	memset(rxbuf, 0, sizeof(rxbuf));   // clear rxbuf to all 0
+	ver_read(fd, &rxbuf[0], sizeof(data_to_send));
+	printf("Read, size: %d bytes .. [0x%x, 0x%x, 0x%x, 0x%x]\n", 15, rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
+	printbuf(rxbuf, sizeof(data_to_send), 0);
 
-	/*** Read 4 bytes at 0x10000 by setting address using the lseek function ***/
-	ofs = 0x10000;
-	if ( lseek(fd, ofs, SEEK_SET) == (off_t)-1 ) {
-		printf("Seek1 Failed %d (%s)\n", errno, strerror(errno));
-	}
-	printf("\n\nREAD 0x10000\n");
-	memset(rxbuf, 0, sizeof(rxbuf));
-	ver_read(fd, &rxbuf[0], 4);
-	printf("Read, bytes: %d [0x%x, 0x%x]\n", 4, rxbuf[0], rxbuf[1]);
-	printbuf(rxbuf, 4, 0x10000);
-
-	/*** Read across page boundaries, read 10 bytes at address 0x1fffa ***/
-	ofs = 0x1fffa;
-	if ( lseek(fd, ofs, SEEK_SET) == (off_t)-1 ) {
-		printf("Seek2 Failed %d (%s)\n", errno, strerror(errno));
-	}
-	printf("\n\nREAD 0x1fffa\n");
-	memset(rxbuf, 0, sizeof(rxbuf));
-	ver_read(fd, &rxbuf[0], 10);
-	printf("Read, bytes: %d [0x%x, 0x%x]\n", 10, rxbuf[0], rxbuf[1]);
-	printbuf(rxbuf, 10, 0x1fffa);
-
-	/*** WRITE content of previous read bytes added with a constant ***/
-	printf("\n\nWRITE 0x1fffc\n");
-	ofs = 0x1fffc;
-	if ( lseek(fd, ofs, SEEK_SET) == (off_t)-1 ) {
-		printf("Seek3 Failed %d (%s)\n", errno, strerror(errno));
-	}
-	txbuf[0] = rxbuf[0xc - 0xa] + 1;
-	txbuf[1] = rxbuf[0xd - 0xa] + 3;
-	txbuf[2] = rxbuf[0xe - 0xa] + 5;
-	txbuf[3] = rxbuf[0xf - 0xa] + 25;
-	txbuf[4] = rxbuf[0x10 - 0xa] + 0x10;
-	txbuf[5] = rxbuf[0x11 - 0xa] + 0x22;
-	ver_write(fd, &txbuf[0], 5);
-
-	/*** WRITE "rtems-spi" to address 0x3 ***/
-	printf("\n\nWRITE 0x03\n");
-	ofs = 0x3;
-	if ( lseek(fd, ofs, SEEK_SET) == (off_t)-1 ) {
-		printf("Seek3 Failed %d (%s)\n", errno, strerror(errno));
-	}
-	txbuf[0] = 'r';
-	txbuf[1] = 't';
-	txbuf[2] = 'e';
-	txbuf[3] = 'm';
-	txbuf[4] = 's';
-	txbuf[5] = '-';
-	txbuf[6] = 's';
-	txbuf[7] = 'p';
-	txbuf[8] = 'i';
-	txbuf[9] = '\0';
-	ver_write(fd, &txbuf[0], 10);
+  close(fd);
 
 	exit(0);
 }

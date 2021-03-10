@@ -1,28 +1,26 @@
 function SendTCPtext
 {
     # Usage
-    # Send TCP Message to EndPointAddr IPAddress at specific port
+    # Send TCP Message to Endpoint IPAddress at specific port
     # 1. load function file into powershell (:> prompt symbol) :>. ./SendTCPtext.ps1
     # 2. Execute Function :>SendTCPtext $ipAddress $Port "Message"
     # Example. :>SendTCPtext 127.0.0.1 8888 "test Message"
 
-    Param ( [string] $EndPointAddr,
+    Param ( [string] $EndPoint,
             [int] $Port,
             [string] $Message
     )
 
-    # Parsing Target IP Address and Port Number
-    $IP = [System.Net.Dns]::GetHostAddresses($EndPointAddr)
+    # Setup connection
+    $IP = [System.Net.Dns]::GetHostAddresses($EndPoint)
     $Address = [System.Net.IPAddress]::Parse($IP)
-
-    # TCP Socket Object
     $Socket = New-Object System.Net.Sockets.TCPClient($Address,$Port)
 
-    # Setup socket stream wrtier object
+    # Setup stream wrtier
     $Stream = $Socket.GetStream()
     $Writer = New-Object System.IO.StreamWriter($Stream)
 
-    # Write Message to stream writer
+    # Write message to stream
     $Message | % {
         $Writer.WriteLine($_)
         $Writer.Flush()

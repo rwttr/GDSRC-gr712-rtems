@@ -1,0 +1,3 @@
+buildConsole/keepLog=true
+buildConsole/logLocation=/home/rwttr/eclipse-workspace/.metadata/.plugins/org.eclipse.cdt.ui/rtems_testdrv_ethernet.build.log
+eclipse.preferences.version=1

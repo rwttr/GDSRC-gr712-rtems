@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;rtems_testdrv_uart/src/rs422write.txt&apos; to &apos;rs422write.c&apos;" description="Rename resource &apos;rs422write.txt&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/rs422write.txt" name="rs422write.c" stamp="1614874432841" updateReferences="true"/>
+</session>

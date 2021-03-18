@@ -1,0 +1,414 @@
+/* Simple OC_CAN interface test.
+ *
+ * Gaisler Research 2007,
+ * Daniel Hellstrom
+ *
+ */
+
+#include <rtems.h>
+#include <assert.h>
+
+#define CONFIGURE_INIT
+#include <bsp.h> /* for device driver prototypes */
+
+rtems_task Init( rtems_task_argument argument);	/* forward declaration needed */
+
+/* configuration information */
+#define CONFIGURE_APPLICATION_NEEDS_CONSOLE_DRIVER
+#define CONFIGURE_APPLICATION_NEEDS_CLOCK_DRIVER
+#define CONFIGURE_APPLICATION_NEEDS_NULL_DRIVER 1
+
+#define CONFIGURE_MAXIMUM_TASKS             32
+#define CONFIGURE_RTEMS_INIT_TASKS_TABLE
+#define CONFIGURE_EXTRA_TASK_STACKS         (4 * RTEMS_MINIMUM_STACK_SIZE)
+#define CONFIGURE_MAXIMUM_FILE_DESCRIPTORS 32
+#define CONFIGURE_INIT_TASK_PRIORITY	100
+#define CONFIGURE_MAXIMUM_DRIVERS 32
+#define CONFIGURE_MAXIMUM_SEMAPHORES 32
+#define CONFIGURE_INIT_TASK_ATTRIBUTES RTEMS_FLOATING_POINT
+
+/* Configure RTEMS */
+#include <rtems/confdefs.h>
+
+/* Configure Driver manager */
+#define CONFIGURE_DRIVER_AMBAPP_GAISLER_GPTIMER
+#define CONFIGURE_DRIVER_AMBAPP_GAISLER_APBUART
+#define CONFIGURE_DRIVER_AMBAPP_GAISLER_OCCAN   /* OCCAN Driver */
+//#define CONFIGURE_DRIVER_AMBAPP_GAISLER_GRCAN
+
+#include <drvmgr/drvmgr_confdefs.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+#include <rtems/bspIo.h>
+
+#include <grlib/occan.h>
+
+#include "occan_lib.h"
+
+
+#define BTR0 0x27	
+#define BTR1 0x3e
+
+
+#undef MULTI_BOARD
+#define TASK_RX
+#define TASK_TX
+//#define MULTI_BOARD
+
+#ifdef MULTI_BOARD
+/* Only one CAN core is used either as TX or RX */
+#define OCCAN_DEVICE_TX_NAME "/dev/occan0"
+#define OCCAN_DEVICE_RX_NAME "/dev/occan0"
+#else
+/* Loopback mode - both CAN cores are used one for RX and one for TX */
+#define OCCAN_DEVICE_TX_NAME "/dev/occan0"
+#define OCCAN_DEVICE_RX_NAME "/dev/occan1"
+#endif
+
+#define SPEED_250K 250000
+
+#define TSK1_RX_LEN 32
+#define TSK1_TX_LEN 8
+
+#define TSK2_RX_LEN 32
+#define TSK2_TX_LEN 8
+
+#define ID_GAISLER 0x2000
+
+rtems_task task1(rtems_task_argument argument);
+rtems_task task2(rtems_task_argument argument);
+
+/*extern int errno;*/
+
+rtems_id   Task_id[3];         /* array of task ids */
+rtems_name Task_name[3];       /* array of task names */
+
+/* ============= initialisation ============= */
+
+rtems_task Init( rtems_task_argument ignored)
+{
+        rtems_status_code status;
+
+    	//drvmgr_print_devs(0xfffff); // print registered drivers
+    	//drvmgr_print_topo();
+
+        printf("*** Starting Gaisler OCCAN sample ***\n");
+      //  printf("occanlib_open: Opening driver %s (init task)\n", OCCAN_DEVICE_RX_NAME);
+/*
+        int fd;
+        fd = open(OCCAN_DEVICE_RX_NAME, O_RDWR);
+        printf("fd=%d\n",O_RDWR);*/
+
+        Task_name[1] = rtems_build_name( 'T', 'S', 'K', 'A' );
+        Task_name[2] = rtems_build_name( 'T', 'S', 'K', 'B' );
+
+        printf("Task Build Name: OK\n");
+
+        status = rtems_task_create(
+                Task_name[1],
+				1,
+				RTEMS_MINIMUM_STACK_SIZE * 4,
+				RTEMS_DEFAULT_MODES,
+                RTEMS_DEFAULT_ATTRIBUTES,
+				&Task_id[1]
+                );
+        assert(status == RTEMS_SUCCESSFUL);
+       	printf("TASK1 create: OK\n");
+
+
+        status = rtems_task_create( 
+                Task_name[2],
+				1,
+				RTEMS_MINIMUM_STACK_SIZE * 4,
+                RTEMS_DEFAULT_MODES,
+                RTEMS_DEFAULT_ATTRIBUTES,
+				&Task_id[2]
+                );
+        assert(status == RTEMS_SUCCESSFUL);
+        printf("TASK2 create: OK\n");
+
+
+         // Starting receiver first
+
+#ifdef TASK_RX
+        status = rtems_task_start(Task_id[2], task2, 1);
+        assert(status == RTEMS_SUCCESSFUL);
+        printf("TASK2 (RX) start: OK\n");
+#endif
+
+#ifdef TASK_TX
+        status = rtems_task_start(Task_id[1], task1, 1);
+        assert(status == RTEMS_SUCCESSFUL);
+        printf("TASK1 (TX) start: OK\n");
+
+#endif
+        status = rtems_task_delete(RTEMS_SELF); // kill init task
+        assert(status == RTEMS_SUCCESSFUL);
+        //exit(0); // turn off warning
+
+}
+
+/* ====================== task1 (TX) ======================= */
+rtems_task task1( rtems_task_argument unused )
+{
+	printf("Task1: Hello Message!\n");
+	occan_t chan;
+	CANMsg msgs[3];
+	int i=0, j=0, left, sent;
+	occan_stats stats;
+	
+	printf("Starting task 1\n");
+		
+	/* open device */
+	chan = occanlib_open(OCCAN_DEVICE_TX_NAME);
+	if ( !chan )
+	{
+		printf("Failed to open device driver 0\n");
+		rtems_task_delete(RTEMS_SELF);
+		exit(0);
+	}
+
+	/* before starting set up 
+	 *  � Speed
+	 *  � Buffer length
+	 *  � no Filter 
+	 *  � blocking mode
+	 */
+	
+	printf("Task1: Setting speed\n"); 
+	//occanlib_set_speed(chan,SPEED_250K);
+        occanlib_set_btrs(chan,BTR0,BTR1);
+	
+	printf("Task1: Setting buf len\n"); 
+	occanlib_set_buf_length(chan,TSK1_RX_LEN,TSK1_TX_LEN);
+	
+	/* total blocking mode */
+	printf("Task1: Setting blk mode\n"); 
+	occanlib_set_blocking_mode(chan,1,1);	
+	
+	/* Set accept all filter */
+	/* occanlib_set_filter(occan_t chan, struct occan_afilter *new_filter);*/
+	
+	/* Start link */
+	printf("Task1: Starting\n"); 
+	occanlib_start(chan);
+
+	printf("Task1: Entring TX loop\n");
+	while(1){
+		/* Send 1 STD Message */
+		msgs[0].extended = 0;
+		msgs[0].rtr = 0;
+		msgs[0].sshot = 0;
+		msgs[0].id = 10+i;
+		msgs[0].len = 4 + (i&1);
+		msgs[0].data[0] = 0x2;
+		msgs[0].data[1] = 0xc4;
+		msgs[0].data[2] = 0x4f;
+		msgs[0].data[3] = 0xf2;
+		msgs[0].data[4] = 0x23;
+		
+		printf("Task1: sending 1 STD msg\n");
+		occanlib_send(chan,&msgs[0]);
+		
+		/* Send 3 EXT Message */
+		msgs[0].extended = 1;
+		msgs[0].rtr = 0;
+		msgs[0].sshot = 0;
+		msgs[0].id = 10+i;
+		msgs[0].len = 4 + (i&1);
+		msgs[0].data[0] = 0x2;
+		msgs[0].data[1] = 0xc4;
+		msgs[0].data[2] = 0x4f;
+		msgs[0].data[3] = 0xf2;
+		msgs[0].data[4] = 0x23;
+		
+		msgs[1].extended = 1;
+		msgs[1].rtr = 0;
+		msgs[1].sshot = 0;
+		msgs[1].id = 10+i;
+		msgs[1].len = 8;
+		msgs[1].data[0] = 0xaa;
+		msgs[1].data[1] = 0xbb;
+		msgs[1].data[2] = 0x11;
+		msgs[1].data[3] = 0x22;
+		msgs[1].data[4] = 'U';
+		msgs[1].data[5] = 0x12;
+		msgs[1].data[6] = 0xff;
+		msgs[1].data[7] = 0x00;
+
+		msgs[2].extended = 1;
+		msgs[2].rtr = 0;
+		msgs[2].sshot = 0;
+		msgs[2].id = (10+i) | ID_GAISLER;
+		msgs[2].len = 7;
+		msgs[2].data[0] = 'G';
+		msgs[2].data[1] = 'a';
+		msgs[2].data[2] = 'i';
+		msgs[2].data[3] = 's';
+		msgs[2].data[4] = 'l';
+		msgs[2].data[5] = 'e';
+		msgs[2].data[6] = 'r';
+						
+	  /* Send 3 EXT Messages */
+		printf("Task1: sending 3 EXT msg\n");
+		left = 3;
+		while ( left > 0 ){
+			sent = occanlib_send_multiple(chan,&msgs[3-left],left);
+			if ( sent < 0 ){
+				printf("Task1: Error, aborting 3 EXT sending\n");
+			}else{
+				left -= sent;
+			}
+		}
+		
+		j++;
+		if ( j == 10 ){
+			/* debug start/stop */
+			printf("---------------- Task1: Stopping ----------------\n"); 
+			occanlib_stop(chan);
+			
+			printf("---------------- Task1: Starting again --------------\n"); 
+			occanlib_start(chan);
+		}
+		
+		if ( (j & 0x1f) == 0x1f ){
+			printf("---------------- Task1: Printing Stats --------------\n"); 
+			if ( !occanlib_get_stats(chan,&stats) ){			
+				occanlib_stats_print(&stats);
+			}
+			printf("---------------- Task1: done Printing  --------------\n"); 
+		}
+
+					
+		/* pause for 1 sec */
+		sleep(1);
+		i++;
+		if ( i>240 )
+			i=0;
+	}
+}
+
+/* ====================== task2 (RX) ======================= */
+rtems_task task2( rtems_task_argument unused )
+{
+	occan_t chan;
+	CANMsg msgs[3];
+	int i, cnt, msgcnt;
+	struct occan_afilter afilt;
+
+	printf("TASK2: Starting\n");
+	//printf("TASK2: Starting 2 %d\n",10);
+	/* open device */
+	chan = occanlib_open(OCCAN_DEVICE_RX_NAME);
+
+
+/*	 Refactoring Section Start
+
+
+	int fd;
+
+	occan_t ret = NULL;
+	//printf("occanlib_open: Opening driver %s \n", OCCAN_DEVICE_RX_NAME);
+
+
+		fd = open(OCCAN_DEVICE_RX_NAME, O_RDWR);
+		if ( fd >= 0 ){
+			printf("occanlib_open: allocating memory %d\n",sizeof(*ret));
+			ret = calloc(sizeof(*ret),1);
+			ret->fd = fd;
+
+		}
+		else
+		{
+			if ( errno == ENODEV ){
+				printf("occanlib_open: channel %s doesn't exist\n", OCCAN_DEVICE_RX_NAME);
+			}else if ( errno == EBUSY ){
+				printf("occanlib_open: channel already taken\n");
+			}else if ( errno == ENOMEM ){
+				printf("occanlib_open: unable to allocate default buffers\n");
+			}else{
+				printf("occanlib_open: errno: %d, ret: %d\n",errno,fd);
+			}
+		}
+
+
+		chan = ret;
+
+	 Refactoring Section End */
+
+	if ( !chan ){
+		printf("TASK2: Failed to open device driver 1\n");
+		rtems_task_delete(RTEMS_SELF);
+		//exit(0);
+	}else{
+		printf("TASK2: Device Driver Opened\n");
+	}
+
+	/* before starting set up 
+	 *  � Speed
+	 *  � Buffer length
+	 *  � no Filter 
+	 *  � blocking mode
+	 */
+	
+	printf("Task2: Setting speed\n"); 
+	//occanlib_set_speed(chan,SPEED_250K);
+	occanlib_set_btrs(chan,BTR0,BTR1);
+  
+	printf("Task2: Setting buf len\n"); 
+	occanlib_set_buf_length(chan,TSK2_RX_LEN,TSK2_TX_LEN);
+	
+	/* total blocking mode */
+	printf("Task2: Setting blk mode\n"); 
+	occanlib_set_blocking_mode(chan,0,1);
+	
+	/* Set filter to accept all */
+	afilt.single_mode = 1;
+	afilt.code[0] = 0x00;
+	afilt.code[1] = 0x00;
+	afilt.code[2] = 0x00;
+	afilt.code[3] = 0x00;
+	afilt.mask[0] = 0xff; /* don't care */
+	afilt.mask[1] = 0xff;
+	afilt.mask[2] = 0xff;
+	afilt.mask[3] = 0xff;
+	occanlib_set_filter(chan,&afilt);
+	
+	/* Start link */
+	printf("Task2: Starting\n"); 
+	occanlib_start(chan);
+	
+	msgcnt=0;
+	printf("Task2: Entering rx loop\n");
+	while(2){
+		/* blocking read */
+		cnt = occanlib_recv_multiple(chan,msgs,3);
+		if ( cnt > 0 ){
+			printf("Task2: Got %d messages\n",cnt);
+			for(i=0; i<cnt; i++){
+				if ( msgs[i].id & ID_GAISLER ){
+					printf("----- GAISLER MESSAGE -----\n");
+				}
+				print_msg(msgcnt,&msgs[i]);
+				if ( msgs[i].id & ID_GAISLER ){
+					printf("---------------------------\n");
+				}
+				msgcnt++;
+			}
+		}else if ( cnt < 0) {
+			printf("Task2: Experienced RX error\n");
+		}else{
+			/* if in non-blocking mode we work with other stuff here */
+			printf("Task2: waiting 1s\n");
+			sleep(1);
+		}
+	}
+	exit(0);
+}
+

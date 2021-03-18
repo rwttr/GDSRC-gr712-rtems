@@ -1,0 +1,106 @@
+/*
+Send and Receive String on UART2 port of GR712RC Board
+*/
+#include <rtems.h>
+/* configuration information */
+#define CONFIGURE_INIT
+
+#include <bsp.h> /* for device driver prototypes */
+
+rtems_task Init( rtems_task_argument argument);	/* forward declaration needed */
+
+/* configuration information : config rtems and rtems driver */
+#define CONFIGURE_APPLICATION_NEEDS_CONSOLE_DRIVER
+#define CONFIGURE_APPLICATION_NEEDS_CLOCK_DRIVER
+#define CONFIGURE_MAXIMUM_TASKS             4
+#define CONFIGURE_RTEMS_INIT_TASKS_TABLE
+#define CONFIGURE_EXTRA_TASK_STACKS         (3 * RTEMS_MINIMUM_STACK_SIZE)
+#define CONFIGURE_MAXIMUM_FILE_DESCRIPTORS	32
+
+#include <rtems/confdefs.h>
+
+/* config GRLIB driver */
+/* Add Timer and UART Driver */
+#define CONFIGURE_DRIVER_AMBAPP_GAISLER_GPTIMER
+#define CONFIGURE_DRIVER_AMBAPP_GAISLER_APBUART
+
+// #include <drvmgr/ambapp_bus.h>
+#include <grlib/ambapp_bus.h>
+
+/* APBUART0 */
+struct drvmgr_key grlib_drv_res_apbuart0[] =
+{
+  {"mode",   DRVMGR_KT_INT, {(unsigned int)1}},
+  {"syscon", DRVMGR_KT_INT, {(unsigned int)0}},
+  DRVMGR_KEY_EMPTY
+};
+/* APBUART1 */
+struct drvmgr_key grlib_drv_res_apbuart1[] =
+{
+  {"mode",   DRVMGR_KT_INT, {(unsigned int)1}},
+  {"syscon", DRVMGR_KT_INT, {(unsigned int)1}},
+  DRVMGR_KEY_EMPTY
+};
+
+/* APBUART2 : as default configuration */
+struct drvmgr_key grlib_drv_res_apbuart2[] =
+{
+  {"mode",   DRVMGR_KT_INT, {(unsigned int)1}},
+  {"syscon", DRVMGR_KT_INT, {(unsigned int)0}},
+  DRVMGR_KEY_EMPTY
+};
+
+/* Register driver */
+struct drvmgr_bus_res grlib_drv_resources =
+{
+  .next = NULL,
+  .resource = {
+    {DRIVER_AMBAPP_GAISLER_APBUART_ID, 0, &grlib_drv_res_apbuart0[0]},
+    {DRIVER_AMBAPP_GAISLER_APBUART_ID, 1, &grlib_drv_res_apbuart1[0]},
+    {DRIVER_AMBAPP_GAISLER_APBUART_ID, 2, &grlib_drv_res_apbuart2[0]},
+    DRVMGR_RES_EMPTY
+  }
+};
+
+
+#include <drvmgr/drvmgr_confdefs.h>
+
+/*  end of driver config */
+#include <rtems/bspIo.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <termios.h>
+#include <unistd.h>
+#include <errno.h>
+
+
+rtems_task Init(  rtems_task_argument ignored )
+{
+	printk("Init task entered\n");
+	int dataTxlen;         // send string length
+	int dataRx_len;        // receive string length
+	struct termios term;   // kernel termios descriptor
+	char bufTx[40];        // UART filename
+	char bufRx[40];        // Receive Buffer
+	int fd;                // UART file descriptor
+	int byte_to_read;
+	int loop_iterator;
+
+	iprintf("checkpoint1\n");
+		printf("\nHello World on System Console\n");
+		fflush(NULL);
+		iprintf("\nHello World on Debug Console\n");
+	#ifndef RTEMS_DRVMGR_STARTUP
+		iprintf("RTEMS configured to support max %d UARTs\n",CONFIGURE_NUMBER_OF_TERMIOS_PORTS);
+	#else
+	  iprintf("RTEMS_DRVMGR_STARTUP is defined\n");
+	#endif
+
+
+	printk("task exit\n");
+	exit(0);
+}

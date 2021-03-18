@@ -1,0 +1,5 @@
+13:32:59 **** Clean-only build of configuration Debug for project rtems-work ****
+rm -rf rtems-work src/rtems-spi-read-AD7814.d src/rtems-spi-read-AD7814.o 
+
+13:33:00 Build Finished. 0 errors, 0 warnings. (took 202ms)
+

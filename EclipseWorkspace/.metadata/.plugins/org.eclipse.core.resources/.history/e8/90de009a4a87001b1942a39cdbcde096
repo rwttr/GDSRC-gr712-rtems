@@ -1,0 +1,37 @@
+#include <grlib/network_interface_add.h>
+#include "networkconfig.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+void system_init(void)
+{
+	/* CPU/SYSTEM specific Init */
+	//system_init2();
+
+	//drvmgr_summary();
+	//drvmgr_info_drvs(OPTION_INFO_ALL);
+	//drvmgr_print_devs(0xfffff);
+
+	/* Print Driver manager drivers and their assigned devices
+	 * drvmgr_summary();
+	 * drvmgr_info_drvs(OPTION_INFO_ALL);
+	 */
+
+
+	/* Init network */
+	printf("Initializing network\n");
+
+	rtems_bsdnet_initialize_network ();
+
+	printf("Initializing network DONE\n\n");
+
+	rtems_bsdnet_show_inet_routes();
+
+	printf("\n");
+
+	rtems_bsdnet_show_if_stats();
+
+	printf("\n\n");
+
+
+}

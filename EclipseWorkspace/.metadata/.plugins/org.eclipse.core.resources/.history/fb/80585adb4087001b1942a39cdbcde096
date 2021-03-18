@@ -1,0 +1,48 @@
+
+#ifdef ENABLE_NETWORK
+#include <grlib/network_interface_add.h>
+#include "networkconfig.h"
+#endif
+
+#include "config_leon3_drvmgr_gr712rc.h"
+#include <stdlib.h>
+
+
+void system_init(void)
+{
+	/* CPU/SYSTEM specific Init */
+	system_init2();
+
+#ifndef RTEMS_DRVMGR_STARTUP
+	/* Initializing Driver Manager if not alread performed by BSP */
+	printf("Initializing manager\n");
+	if ( drvmgr_init() )
+	{
+		printf("Driver manager Failed to initialize\n");
+		exit(-1);
+	}
+#endif
+
+	/* Print Driver manager drivers and their assigned devices
+	 * drvmgr_summary();
+	 * drvmgr_info_drvs(OPTION_INFO_ALL);
+	 */
+
+#ifdef ENABLE_NETWORK
+	/* Init network */
+	printf("Initializing network\n");
+
+	rtems_bsdnet_initialize_network ();
+
+	printf("Initializing network DONE\n\n");
+
+	rtems_bsdnet_show_inet_routes();
+
+	printf("\n");
+
+	rtems_bsdnet_show_if_stats();
+
+	printf("\n\n");
+#endif
+
+}

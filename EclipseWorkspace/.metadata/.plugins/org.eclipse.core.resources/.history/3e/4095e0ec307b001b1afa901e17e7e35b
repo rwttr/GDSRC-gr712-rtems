@@ -1,0 +1,165 @@
+/*
+Send and Receive String on UART2 port of GR712RC Board
+*/
+#include <rtems.h>
+/* configuration information */
+#define CONFIGURE_INIT
+
+#include <bsp.h> /* for device driver prototypes */
+
+rtems_task Init( rtems_task_argument argument);	/* forward declaration needed */
+
+/* configuration information : config rtems and rtems driver */
+#define CONFIGURE_APPLICATION_NEEDS_CONSOLE_DRIVER
+#define CONFIGURE_APPLICATION_NEEDS_CLOCK_DRIVER
+#define CONFIGURE_MAXIMUM_TASKS             4
+#define CONFIGURE_RTEMS_INIT_TASKS_TABLE
+#define CONFIGURE_EXTRA_TASK_STACKS         (3 * RTEMS_MINIMUM_STACK_SIZE)
+#define CONFIGURE_MAXIMUM_FILE_DESCRIPTORS	32
+
+#include <rtems/confdefs.h>
+
+/* config GRLIB driver */
+/* Add Timer and UART Driver */
+#define CONFIGURE_DRIVER_AMBAPP_GAISLER_GPTIMER
+#define CONFIGURE_DRIVER_AMBAPP_GAISLER_APBUART
+
+// #include <drvmgr/ambapp_bus.h>
+#include <grlib/ambapp_bus.h>
+/* APBUART0 */
+struct drvmgr_key grlib_drv_res_apbuart0[] =
+{
+  {"mode",   DRVMGR_KT_INT, {(unsigned int)1}},
+  {"syscon", DRVMGR_KT_INT, {(unsigned int)1}},
+  DRVMGR_KEY_EMPTY
+};
+/* APBUART1 */
+struct drvmgr_key grlib_drv_res_apbuart1[] =
+{
+  {"mode",   DRVMGR_KT_INT, {(unsigned int)1}},
+  {"syscon", DRVMGR_KT_INT, {(unsigned int)0}},
+  DRVMGR_KEY_EMPTY
+};
+
+/* APBUART2 : as default configuration */
+struct drvmgr_key grlib_drv_res_apbuart2[] =
+{
+  {"mode",   DRVMGR_KT_INT, {(unsigned int)1}},
+  {"syscon", DRVMGR_KT_INT, {(unsigned int)0}},
+  DRVMGR_KEY_EMPTY
+};
+
+/* Register driver */
+struct drvmgr_bus_res grlib_drv_resources =
+{
+  .next = NULL,
+  .resource = {
+    {DRIVER_AMBAPP_GAISLER_APBUART_ID, 0, &grlib_drv_res_apbuart0[0]},
+    {DRIVER_AMBAPP_GAISLER_APBUART_ID, 1, &grlib_drv_res_apbuart1[0]},
+    {DRIVER_AMBAPP_GAISLER_APBUART_ID, 2, &grlib_drv_res_apbuart2[0]},
+    DRVMGR_RES_EMPTY
+  }
+};
+
+int debug_uart_index = 2; /* second UART -- APBUART[1] */
+#include <drvmgr/drvmgr_confdefs.h>
+
+/*  end of driver config */
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <termios.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+
+rtems_task Init(  rtems_task_argument ignored )
+{
+	int dataTxlen;         // send string length
+  int dataRx_len;        // receive string length
+	struct termios term;   // kernel termios descriptor
+	char bufTx[50];        // UART filename
+  char bufRx[50];        // Receive Buffer
+	int fd;                // UART file descriptor
+	int byte_to_read;
+  int loop_iterator;
+
+	printk("\nHello World on System Console\n");
+	fflush(NULL);
+	printk("\nHello World on Debug Console\n");
+#ifndef RTEMS_DRVMGR_STARTUP
+	printf("RTEMS configured to support max %d UARTs\n",CONFIGURE_NUMBER_OF_TERMIOS_PORTS);
+#else
+  printf("RTEMS_DRVMGR_STARTUP is defined\n");
+#endif
+
+  /*Specify UART : UART path in rtems filesystem*/
+  sprintf(bufTx, "/dev/console_c");
+
+  /* open target UART with O_RDWR mode (read/write mode) */
+  fd = open(bufTx, O_RDWR);
+
+  if ( fd < 0 ) {
+    printf("Failed to open %s. Cause open failed, ERRNO: %s\n",bufTx,strerror(errno));
+  }
+  else{
+	  printk("UART port openned\n");
+  }
+  /* Get current configuration */
+  tcgetattr(fd, &term);
+
+  /* Set Console baud to 38400, default is 38400 */
+  cfsetospeed(&term, B38400);
+  cfsetispeed(&term, B38400);
+
+  /* Do not echo chars from input*/
+  term.c_lflag &= ~(ICANON|ECHO|ECHOE|ECHOK|ECHONL|ECHOPRT|ECHOCTL|ECHOKE);
+
+  /* Update driver's settings */
+  tcsetattr(fd, TCSANOW, &term);
+  fflush(NULL);
+
+
+  /* Send Data*/
+	/* Prepare string to send */
+	dataTxlen = sprintf(bufTx, "Hello World from GR712RC APBUART3\n");
+	printk("Data to send : %s with length :%d",bufTx,dataTxlen);
+
+	if ( write(fd, &bufTx, dataTxlen) != dataTxlen ) {
+		printk("Failed to Send\n");
+		exit(0);
+  }
+
+	/* Force send */
+	fflush(NULL);
+  rtems_task_wake_after(10);
+  /* Receive Data*/
+  byte_to_read = 10;
+  dataRx_len = 0;
+  loop_iterator = 0;
+  while(dataRx_len < 1)
+  {
+      dataRx_len = read(fd, &bufRx, byte_to_read);
+      rtems_task_wake_after(100);
+      if (loop_iterator < 1)
+      {
+        printf("Waiting for data to be received\n");
+      }
+
+      loop_iterator++;
+
+      if(dataRx_len>0)
+      {
+        printf("Data Received with %d byte(s) \n",dataRx_len);
+        printf("message: %s\n",bufRx);
+      }
+  }
+	fflush(NULL);
+
+	/* Stop test program */
+	exit(0);
+}

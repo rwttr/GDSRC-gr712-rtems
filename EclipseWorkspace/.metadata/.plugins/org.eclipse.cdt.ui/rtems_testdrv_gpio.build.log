@@ -1,0 +1,7 @@
+15:00:13 **** Rebuild of configuration Debug for project rtems_testdrv_gpio ****
+Info: Internal Builder is used for build
+sparc-gaisler-rtems5-gcc "-ID:\\opt\\rcc-1.3.0-gcc\\sparc-gaisler-rtems5\\gr712rc\\lib\\include" -O0 -g3 -Wall -c -fmessage-length=0 -mcpu=leon3 -mfix-gr712rc -qbsp=gr712rc -o "src\\rtems-gpio-blink.o" "..\\src\\rtems-gpio-blink.c" 
+sparc-gaisler-rtems5-gcc -mcpu=leon3 -mfix-gr712rc -qbsp=gr712rc -o rtems_testdrv_gpio "src\\rtems-gpio-blink.o" 
+
+15:00:13 Build Finished. 0 errors, 0 warnings. (took 506ms)
+

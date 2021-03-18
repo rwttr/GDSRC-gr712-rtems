@@ -1,0 +1,7 @@
+1614748501791	Delete resource 'rtems-work/src/config_leon3_drvmgr.c'
+1614748504634	Delete resource 'rtems-work/src/config.c'
+1614794804754	Delete resource 'rtems-work/src/rtems-hello-spi-raw.txt'
+1614794815495	Delete resource 'rtems-work/src/rtems-spi-ad7891.txt'
+1614794830025	Delete resource 'rtems-work/src/spi-ad78xx.h'
+1614794839725	Delete resource 'rtems-work/src/spi-ad78xx.c'
+1614919421958	Delete resource 'rtems_testdrv_can/include_add'

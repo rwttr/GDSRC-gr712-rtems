@@ -1,0 +1,276 @@
+/* SPICTRL interface example */
+
+/* Define this to use GPIO for chip select */
+#define USE_GPIO_SLVSEL
+
+#include <rtems.h>
+
+#define CONFIGURE_INIT
+#include <bsp.h> /* for device driver prototypes */
+
+rtems_task Init( rtems_task_argument argument);	/* forward declaration needed */
+
+/* configure RTEMS kernel */
+#define CONFIGURE_APPLICATION_NEEDS_CONSOLE_DRIVER
+#define CONFIGURE_APPLICATION_NEEDS_CLOCK_DRIVER
+#define CONFIGURE_MAXIMUM_TASKS             32
+#define CONFIGURE_RTEMS_INIT_TASKS_TABLE
+#define CONFIGURE_EXTRA_TASK_STACKS         (24 * RTEMS_MINIMUM_STACK_SIZE)
+#define CONFIGURE_MAXIMUM_FILE_DESCRIPTORS 32
+#define CONFIGURE_INIT_TASK_PRIORITY	100
+#define CONFIGURE_MAXIMUM_DRIVERS 32
+#define CONFIGURE_USE_IMFS_AS_BASE_FILESYSTEM
+#define CONFIGURE_INIT_TASK_ATTRIBUTES RTEMS_FLOATING_POINT
+
+//#define CONFIGURE_MAXIMUM_POSIX_SEMAPHORES 32
+#define CONFIGURE_MAXIMUM_SEMAPHORES 32
+//#define CONFIGURE_APPLICATION_NEEDS_I2C_DRIVER
+
+#include <rtems/confdefs.h>
+
+/* Configure Driver Manager */
+#include <drvmgr/drvmgr.h>
+
+ /* Add Timer and UART Driver for this example */
+#define CONFIGURE_DRIVER_AMBAPP_GAISLER_GPTIMER
+#define CONFIGURE_DRIVER_AMBAPP_GAISLER_APBUART
+#define CONFIGURE_DRIVER_AMBAPP_GAISLER_SPICTRL
+/* Option if use GPIO as spi cs pins (chip-select pin) */
+#ifdef USE_GPIO_SLVSEL
+  #define CONFIGURE_DRIVER_AMBAPP_GAISLER_GRGPIO
+#endif
+
+#include <grlib/ambapp_bus_grlib.h>
+#include <grlib/ambapp_bus.h>
+#include <grlib/ambapp_ids.h>
+
+/* GRGPIO1 driver configuration (optional) */
+struct drvmgr_key grlib_drv_res_spictrl0[] =
+{
+#ifdef SPICTRL_SLV_SEL_FUNC
+	{"slvSelFunc", DRVMGR_KT_POINTER, {(unsigned int)SPICTRL_SLV_SEL_FUNC}},
+#endif
+	DRVMGR_KEY_EMPTY
+};
+
+struct drvmgr_bus_res grlib_drv_resources =
+{
+	.next = NULL,
+	.resource = {
+	{DRIVER_AMBAPP_GAISLER_SPICTRL_ID, 0, &grlib_drv_res_spictrl0[0]},
+	DRVMGR_RES_EMPTY
+	}
+};
+
+
+#include <drvmgr/drvmgr_confdefs.h>
+/* end of driver config */
+
+#include <grlib/spictrl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+
+/* Option if use GPIO as spi cs pins (chip-select pin) */
+#ifdef USE_GPIO_SLVSEL
+#include <grlib/gpiolib.h>
+/* Provide custom slave select function */
+void *spi_gpio_port = NULL;
+extern int spi_gpio_slvsel(void *regs, int addr, int select);
+extern int spi_gpio_slvsel_setup(int port);
+#define SPICTRL_SLV_SEL_FUNC spi_gpio_slvsel
+#define GPIO_PORT_NR 54
+#endif
+
+#include <rtems.h>
+#include <rtems/bspIo.h>
+#include <rtems/libi2c.h>
+#include <rtems/libio.h>
+
+/*particular device SPI driver */
+#include <libchip/spi-memdrv.h>
+
+#include <errno.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+/*SPI Driver struct*/
+
+spi_memdrv_t intel_spi_flash = {
+  { //public fields
+  .ops =         &spi_memdrv_rw_ops, // operations of general memdrv
+  .size =        sizeof (intel_spi_flash),
+  },
+  {  //our private fields
+  .baudrate =             2000000,
+  .erase_before_program = true,
+  .empty_state =          0xff,
+  .page_size =            256,  //programming page size in byte
+  .sector_size =          64*1024,  // erase sector size in byte
+  .mem_size =             8*1024*1024  // total capacity in byte
+  }
+};
+
+rtems_libi2c_drv_t *my_driver_desc = &intel_spi_flash.libi2c_drv_entry;
+
+/* ========================================================= */
+/* Standard Open, Read, Write function for SPI with Verbose on console*/
+
+/* ver_read: Verbose read, checks return value of read() call */
+void ver_read(int fd, void *buf, size_t count)
+{
+  int status;
+
+  status = read(fd, buf, count);
+  if (status < 0) {
+    printf("read() call returned with error: %s\n",
+	   strerror(errno));
+
+  } else if (status < count) {
+    printf("\nread() did not return with all requested bytes\n"
+	   "requested bytes: %d, returned bytes: %d\n\n",
+	   count, status);
+  }
+}
+
+void ver_write(int fd, const void *buf, size_t count)
+{
+  int status;
+
+  status = write(fd, buf, count);
+  if (status < 0) {
+    printf("write() call returned with error: %s\n",
+	   strerror(errno));
+  } else if (status < count) {
+    printf("write() did not output all bytes\n"
+	   "requested bytes: %d, returned bytes: %d\n\n",
+	   count, status);
+  }
+}
+
+/* ver_open: Checks return value of open and exits on failure */
+int ver_open(const char *pathname, int flags)
+{
+  int fd;
+
+  fd = open(pathname, O_RDWR);
+  if (fd < 0) {
+    printf("Could not open %s: %s\n", pathname, strerror(errno));
+    exit(0);
+  }
+  return fd;
+}
+
+rtems_task Init( rtems_task_argument ignored )
+{
+	//rtems_libi2c_initialize();
+
+	if ( gpiolib_initialize() ) {
+		printk("Failed to initialize GPIO libarary\n");
+		exit(0);
+	}
+
+	rtems_status_code status;
+	char *spi_basic_dev = "/dev/spi1.basic"; // SPI filesystem name
+	int fd; // file descriptor
+	unsigned char rxbuf[10];// Receive Buffer
+
+	printf("*** Initializing SPICTRL ***\n");
+
+#ifdef USE_GPIO_SLVSEL
+	spi_gpio_slvsel_setup(GPIO_PORT_NR);
+#endif
+
+/*
+	drvmgr_print_devs(0xfffff); // list all driver on system
+	drvmgr_print_topo(); // print device topology
+*/
+	/* The driver has initialized the i2c library for us */
+
+  printf("Registering basic spi driver: ");
+
+
+  status = rtems_libi2c_register_drv("basic", my_driver_desc, 0, 1);
+
+  if (status < 0) {
+    printf("ERROR: Could not register SPI FLASH driver\n");
+    exit(0);
+  }else{
+	printf("driver registered successfully\n");
+  }
+
+  //drvmgr_print_topo();
+	fd = open(spi_basic_dev, O_RDONLY);
+	if ( fd < 0 ) {
+		printf("Failed to open basic SPI\n");
+		exit(0);
+	}else
+	{
+		printf("SPI device opened\n");
+	}
+
+	/*** Read 2 bytes ***/
+	memset( &rxbuf[0], 2, sizeof(rxbuf)); // set buffer to all zero
+	ver_read(fd, &rxbuf[0], 2);
+	printf("Read, bytes: 0x%02x, 0x%02x\n", rxbuf[0],rxbuf[1]);
+
+	char txbuf[] = "hello spi\n";
+	ver_write(fd, &txbuf[0], 10);
+
+	close(fd);
+	exit(0);
+}
+
+#ifdef USE_GPIO_SLVSEL
+int spi_gpio_slvsel_setup(int portnr)
+{
+	struct gpiolib_config cfg;
+
+	/* The drivers that use the GPIO Libarary have already initialized
+	 * the libarary, however if no cores the drivers will not initialize it.
+	 */
+	if ( gpiolib_initialize() ) {
+		printf("Failed to initialize GPIO libarary\n");
+		return -1;
+	}
+
+	/* Show all GPIO Ports available */
+	//gpiolib_show(-1, NULL);
+
+	spi_gpio_port = gpiolib_open(portnr);
+	if ( spi_gpio_port == NULL ){
+		printf("Failed to open gpio port %d\n", portnr);
+		return -1;
+	}
+
+	/* Mask IRQ, Low level (interrupt not enabled anyway) */
+	cfg.mask = 0;
+	cfg.irq_level = 1;
+	cfg.irq_polarity = 0;
+	gpiolib_set_config(spi_gpio_port, &cfg);
+
+	/* Drive pin */
+	//gpiolib_set(spi_gpio_port, 1, 1);
+	gpiolib_set(spi_gpio_port, 1, 0);
+	return 0;
+}
+
+int spi_gpio_slvsel(void *regs, int addr, int select)
+{
+	/*printk("SPI ADDR: addr 0x%x [0x%x]\n", addr, regs);*/
+	if ( (addr >= 0) && select ) {
+		/* Drive low */
+		gpiolib_set(spi_gpio_port, 1, 0);
+	} else {
+		/* Drive high */
+		gpiolib_set(spi_gpio_port, 1, 1);
+	}
+	return 0;
+}
+
+#endif

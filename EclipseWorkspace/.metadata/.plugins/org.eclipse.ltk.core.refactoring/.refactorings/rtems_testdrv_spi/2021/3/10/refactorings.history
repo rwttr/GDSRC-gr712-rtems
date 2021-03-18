@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;rtems_testdrv_spi/src/rtems-spi-AD7814.tt&apos; to &apos;rtems-spi-AD7814.c&apos;" description="Rename resource &apos;rtems-spi-AD7814.tt&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/rtems-spi-AD7814.tt" name="rtems-spi-AD7814.c" stamp="1614873746460" updateReferences="true"/>
+</session>

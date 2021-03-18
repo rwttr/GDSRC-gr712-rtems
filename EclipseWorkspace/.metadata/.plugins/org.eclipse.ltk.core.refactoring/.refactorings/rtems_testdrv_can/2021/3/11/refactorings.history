@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;rtems_testdrv_can/src/rtems-occan-edit.c&apos; to &apos;rtems-occan.c&apos;" description="Rename resource &apos;rtems-occan-edit.c&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/rtems-occan-edit.c" name="rtems-occan.c" stamp="1615358187412" updateReferences="true"/>
+</session>

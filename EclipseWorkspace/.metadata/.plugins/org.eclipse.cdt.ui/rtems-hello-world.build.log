@@ -1,0 +1,15 @@
+15:09:35 **** Build of configuration Debug for project rtems-hello-world ****
+make all 
+Building file: ../src/rtems-gpio-blink.c
+Invoking: Cross GCC Compiler
+sparc-gaisler-rtems5-gcc -I/opt/rcc-1.3.0-gcc/sparc-gaisler-rtems5/gr712rc/lib/include -O2 -g3 -Wall -c -fmessage-length=0 -mcpu=leon3 -mfix-gr712rc -qbsp=gr712rc -MMD -MP -MF"src/rtems-gpio-blink.d" -MT"src/rtems-gpio-blink.o" -o "src/rtems-gpio-blink.o" "../src/rtems-gpio-blink.c"
+Finished building: ../src/rtems-gpio-blink.c
+ 
+Building target: rtems-hello-world
+Invoking: Cross GCC Linker
+sparc-gaisler-rtems5-gcc -mcpu=leon3 -mfix-gr712rc -qbsp=gr712rc -o "rtems-hello-world"  ./src/rtems-gpio-blink.o   
+Finished building target: rtems-hello-world
+ 
+
+15:09:35 Build Finished. 0 errors, 0 warnings. (took 282ms)
+

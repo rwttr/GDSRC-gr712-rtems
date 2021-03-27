@@ -29,18 +29,13 @@ rtems_task Init( rtems_task_argument argument);	/* forward declaration needed */
 #define CONFIGURE_DRIVER_AMBAPP_GAISLER_GPTIMER
 #define CONFIGURE_DRIVER_AMBAPP_GAISLER_APBUART
 #define CONFIGURE_DRIVER_AMBAPP_GAISLER_GRGPIO  /* GRGPIO driver */
-#define CONFIGURE_DRIVER_AMBAPP_GAISLER_PCIF    /* PCI is for RASTA-IO GRGPIO */
-#define CONFIGURE_DRIVER_AMBAPP_GAISLER_GRPCI   /* PCI is for RASTA-IO GRGPIO */
-#define CONFIGURE_DRIVER_AMBAPP_GAISLER_GRPCI2  /* PCI is for RASTA-IO GRGPIO */
-#define CONFIGURE_DRIVER_PCI_GR_RASTA_IO        /* GR-RASTA-IO PCI Target Driver */
 
 #include <drvmgr/drvmgr_confdefs.h>
 /* end of driver config*/
 
-#include <rtems/bspIo.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <rtems/bspIo.h>
 #include <grlib/gpiolib.h>
 
 #define GPIO_PORT_NR (4) /* GPIO port/pin number*/
@@ -68,24 +63,25 @@ rtems_task Init( rtems_task_argument ignored )
 	struct gpiolib_config cfg;
 	int val;
 	int timeout_limit;
-
+	//drvmgr_print_devs(0xfffff);
 	/* The drivers that use the GPIO Libarary have already initialized the libarary,
-   * however if no cores the drivers will not initialize it.
-	 */
+	 * however if no cores the drivers will not initialize it.  */
 	if ( gpiolib_initialize() ) {
 		printf("Failed to initialize GPIO libarary\n");
 		exit(0);
 	}
 
 	/* Show all GPIO Ports available */
-	//gpiolib_show(-1, NULL); // -1 argument for all ports
+	gpiolib_show(-1, NULL); // -1 argument for all ports
 
+	/* Open */
 	port = gpiolib_open(GPIO_PORT_NR);
 	if ( port == NULL ){
 		printf("Failed to open gpio port %d\n", GPIO_PORT_NR);
 		exit(0);
 	}
 
+	/* Setup Interrupt */
 	/* Mask away GPIO IRQ */
 	cfg.mask = 0;
 	cfg.irq_level = GPIOLIB_IRQ_LEVEL;

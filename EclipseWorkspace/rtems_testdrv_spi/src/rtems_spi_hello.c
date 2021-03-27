@@ -1,16 +1,13 @@
-/* SPICTRL interface example */
 
-/* Define this to use GPIO for chip select */
 #define USE_GPIO_SLVSEL
 
 #include <rtems.h>
 
 #define CONFIGURE_INIT
-#include <bsp.h> /* for device driver prototypes */
+#include <bsp.h>
 
-rtems_task Init( rtems_task_argument argument);	/* forward declaration needed */
+rtems_task Init( rtems_task_argument argument);
 
-/* configure RTEMS kernel */
 #define CONFIGURE_APPLICATION_NEEDS_CONSOLE_DRIVER
 #define CONFIGURE_APPLICATION_NEEDS_CLOCK_DRIVER
 #define CONFIGURE_MAXIMUM_TASKS             32
@@ -31,10 +28,10 @@ rtems_task Init( rtems_task_argument argument);	/* forward declaration needed */
 /* Configure Driver Manager */
 #include <drvmgr/drvmgr.h>
 
- /* Add Timer and UART Driver for this example */
 #define CONFIGURE_DRIVER_AMBAPP_GAISLER_GPTIMER
 #define CONFIGURE_DRIVER_AMBAPP_GAISLER_APBUART
 #define CONFIGURE_DRIVER_AMBAPP_GAISLER_SPICTRL
+
 /* Option if use GPIO as spi cs pins (chip-select pin) */
 #ifdef USE_GPIO_SLVSEL
   #define CONFIGURE_DRIVER_AMBAPP_GAISLER_GRGPIO
@@ -66,6 +63,7 @@ struct drvmgr_bus_res grlib_drv_resources =
 #include <drvmgr/drvmgr_confdefs.h>
 /* end of driver config */
 
+/* Application */
 #include <grlib/spictrl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -90,7 +88,8 @@ extern int spi_gpio_slvsel_setup(int port);
 #include <rtems/libio.h>
 
 /*particular device SPI driver */
-#include <libchip/spi-memdrv.h>
+//#include <libchip/spi-memdrv.h>
+#include <libchip/spi-fram-fm25l256.h>
 
 #include <errno.h>
 #include <stdlib.h>
@@ -100,7 +99,7 @@ extern int spi_gpio_slvsel_setup(int port);
 #include <fcntl.h>
 
 /*SPI Driver struct*/
-
+/*
 spi_memdrv_t intel_spi_flash = {
   { //public fields
   .ops =         &spi_memdrv_rw_ops, // operations of general memdrv
@@ -116,16 +115,13 @@ spi_memdrv_t intel_spi_flash = {
   }
 };
 
-rtems_libi2c_drv_t *my_driver_desc = &intel_spi_flash.libi2c_drv_entry;
+rtems_libi2c_drv_t *my_driver_desc = &intel_spi_flash.libi2c_drv_entry;*/
 
-/* ========================================================= */
+
 /* Standard Open, Read, Write function for SPI with Verbose on console*/
-
-/* ver_read: Verbose read, checks return value of read() call */
 void ver_read(int fd, void *buf, size_t count)
 {
   int status;
-
   status = read(fd, buf, count);
   if (status < 0) {
     printf("read() call returned with error: %s\n",
@@ -144,16 +140,16 @@ void ver_write(int fd, const void *buf, size_t count)
 
   status = write(fd, buf, count);
   if (status < 0) {
-    printf("write() call returned with error: %s\n",
-	   strerror(errno));
+	  printf("write() call returned with error: %s\n", strerror(errno));
   } else if (status < count) {
-    printf("write() did not output all bytes\n"
-	   "requested bytes: %d, returned bytes: %d\n\n",
-	   count, status);
+	  printf("write() did not output all bytes\n"
+			  "requested bytes: %d, returned bytes: %d\n\n", count, status);
+  } else if (status == count) {
+	  printf("write() call return with %d bytes\n",status);
+
   }
 }
 
-/* ver_open: Checks return value of open and exits on failure */
 int ver_open(const char *pathname, int flags)
 {
   int fd;
@@ -166,9 +162,11 @@ int ver_open(const char *pathname, int flags)
   return fd;
 }
 
+
 rtems_task Init( rtems_task_argument ignored )
 {
 	//rtems_libi2c_initialize();
+	//drvmgr_print_devs(0xfffff);
 
 	if ( gpiolib_initialize() ) {
 		printk("Failed to initialize GPIO libarary\n");
@@ -176,9 +174,9 @@ rtems_task Init( rtems_task_argument ignored )
 	}
 
 	rtems_status_code status;
-	char *spi_basic_dev = "/dev/spi1.basic"; // SPI filesystem name
-	int fd; // file descriptor
-	unsigned char rxbuf[10];// Receive Buffer
+	char *spi_basic_dev = "/dev/spi1.basic";
+	int fd;
+	unsigned char rxbuf[10];
 
 	printf("*** Initializing SPICTRL ***\n");
 
@@ -186,26 +184,22 @@ rtems_task Init( rtems_task_argument ignored )
 	spi_gpio_slvsel_setup(GPIO_PORT_NR);
 #endif
 
-/*
-	drvmgr_print_devs(0xfffff); // list all driver on system
-	drvmgr_print_topo(); // print device topology
-*/
 	/* The driver has initialized the i2c library for us */
+	printf("Registering basic spi driver: ");
 
-  printf("Registering basic spi driver: ");
+
+	//status = rtems_libi2c_register_drv("basic", my_driver_desc, 0, 1);
+	status = rtems_libi2c_register_drv("basic", spi_fram_fm25l256_rw_driver_descriptor, 0, 1);
+
+	if (status < 0) {
+		printf("ERROR: Could not register SPI FLASH driver\n");
+		exit(0);
+	}else{
+		printf("driver registered successfully\n");
+	}
 
 
-  status = rtems_libi2c_register_drv("basic", my_driver_desc, 0, 1);
-
-  if (status < 0) {
-    printf("ERROR: Could not register SPI FLASH driver\n");
-    exit(0);
-  }else{
-	printf("driver registered successfully\n");
-  }
-
-  //drvmgr_print_topo();
-	fd = open(spi_basic_dev, O_RDONLY);
+	fd = open(spi_basic_dev, O_RDWR);
 	if ( fd < 0 ) {
 		printf("Failed to open basic SPI\n");
 		exit(0);
@@ -215,12 +209,13 @@ rtems_task Init( rtems_task_argument ignored )
 	}
 
 	/*** Read 2 bytes ***/
+	printf("Read 2 bytes : \n");
 	memset( &rxbuf[0], 2, sizeof(rxbuf)); // set buffer to all zero
 	ver_read(fd, &rxbuf[0], 2);
 	printf("Read, bytes: 0x%02x, 0x%02x\n", rxbuf[0],rxbuf[1]);
 
 	char txbuf[] = "hello spi\n";
-	ver_write(fd, &txbuf[0], 10);
+	ver_write(fd, txbuf, 10);
 
 	close(fd);
 	exit(0);

@@ -17,7 +17,7 @@ C_DEPS += \
 src/%.o: ../src/%.c
 	@echo 'Building file: $<'
 	@echo 'Invoking: Cross GCC Compiler'
-	sparc-gaisler-rtems5-gcc -I/opt/rcc-1.3.0-gcc/sparc-gaisler-rtems5/gr712rc/lib/include -O0 -g3 -Wall -c -fmessage-length=0 -mcpu=leon3 -mfix-gr712rc -qbsp=gr712rc -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
+	sparc-gaisler-rtems5-gcc -I/opt/rcc-1.3.0-gcc/sparc-gaisler-rtems5/gr712rc/lib/include -O2 -Wall -c -fmessage-length=0 -mcpu=leon3 -mfix-gr712rc -qbsp=gr712rc -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
